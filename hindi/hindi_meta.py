@@ -26,9 +26,11 @@ from modules.utils import replace_html_codes
 
 
 def gettmdb_id(mediatype, title, year, studio):
-    if mediatype == 'movie': tmdb_id = f'{title.lower()}|{year}'
-    else: tmdb_id = f'{studio}|{title.lower()}'
-    return tmdb_id
+    return (
+        f'{title.lower()}|{year}'
+        if mediatype == 'movie'
+        else f'{studio}|{title.lower()}'
+    )
 
 
 def fetch_meta(mediatype, title, tmdb_id, homepage, studio='Hindi', poster='hindi_movies.png', plot='', genre=[], year=2022, cast=[], imdb_id='', rating=5.0):
@@ -41,8 +43,7 @@ def fetch_meta(mediatype, title, tmdb_id, homepage, studio='Hindi', poster='hind
         if not plot and re.search('desi-serials|playdesi', str(homepage), re.I):
             plot, rating, genre = get_plot_tvshow(homepage)
         meta = populet_dict(mediatype=mediatype, title=title, homepage=homepage, studio=studio, poster=poster, tmdb_id=tmdb_id, imdb_id=imdb_id, plot=plot, genre=genre, year=year, cast=cast, rating=rating)
-        imdbdata = get_datajson_imdb(meta)
-        if imdbdata:
+        if imdbdata := get_datajson_imdb(meta):
             logger(f'imdb_id imdbdata: {imdbdata}')
             meta = meta_merge_update(meta, imdbdata)
         # metacache.set(mediatype, 'tmdb_id', meta)
@@ -109,9 +110,9 @@ def populet_dict(mediatype, title, homepage, studio, poster, tmdb_id, imdb_id, p
     """
     if imdb_id == '': imdb_id = tmdb_id
     try:
-        special_path = 'special://home/addons'
         if 'addons\\plugin.video.infinite' in poster:
-            poster = "%s%s" % (special_path, poster.split('addons')[1])
+            special_path = 'special://home/addons'
+            poster = f"{special_path}{poster.split('addons')[1]}"
             poster = poster.replace('\\', '/')
     except: logger(f"homepath not found: {traceback.print_exc()}")
     if cast is None: cast = [{'role': '', 'name': '', 'thumbnail': ''}]
@@ -128,10 +129,8 @@ def populet_dict(mediatype, title, homepage, studio, poster, tmdb_id, imdb_id, p
         genre = genre.replace('<span data-sheets-value="{"1"', '')
         genre = replace_html_codes(genre)
         fgenre.append(genre.strip())
-    # logger(f'IN genre: {genre} plot: {plot}')
     if not fgenre:
-        if mediatype == 'movie': fgenre = ['movie']
-        else: fgenre = ['tv']
+        fgenre = ['movie'] if mediatype == 'movie' else ['tv']
     if len(fgenre) > 1: fgenre = list(set(fgenre))  #remove duplicate items from list
     dic_meta = {'mediatype': mediatype,
                 'year': year,
@@ -149,10 +148,21 @@ def populet_dict(mediatype, title, homepage, studio, poster, tmdb_id, imdb_id, p
                 'votes': 50, 'tagline': '', 'director': [],
                 'writer': [], 'episodes': 0, 'seasons': 0,
                 'extra_info': {'status': '', 'collection_id': ''}}
-    if mediatype == 'movie': dic_meta.update({'tvdb_id': 'None', 'duration': 5400, 'mpaa': 'R'})
+    if mediatype == 'movie':
+        dic_meta |= {'tvdb_id': 'None', 'duration': 5400, 'mpaa': 'R'}
     else:
         season = find_season_in_title(title)
-        dic_meta.update({'tvdb_id': imdb_id, 'duration': 1320, 'mpaa': 'TV-MA', 'season': season, 'episodes': '1', 'seasons': '1', 'episode': 1, 'tvshowtitle': title})
+        dic_meta |= {
+            'tvdb_id': imdb_id,
+            'duration': 1320,
+            'mpaa': 'TV-MA',
+            'season': season,
+            'episodes': '1',
+            'seasons': '1',
+            'episode': 1,
+            'tvshowtitle': title,
+        }
+
 
     return dic_meta
 
@@ -161,8 +171,7 @@ def getimdbid(meta):
     title = meta['title']
     year = meta['year']
     title = keepclean_title(title)
-    imdb_id = imdbid(title)
-    if imdb_id: 
+    if imdb_id := imdbid(title):
         meta.update({'imdb_id': imdb_id})
         return meta
     # title = re.sub(r'\<[^>]*\>|\([^>]*\)', '', title)  # remove like this <anything> or (any thing)
@@ -174,9 +183,7 @@ def getimdbid(meta):
     logger(f'search_url: {search_url}')
     try: html = requests.get(search_url).text
     except: return meta
-    scripts = parseDOM(html, 'script', attrs={'id': '__NEXT_DATA__'})
-    # logger(f'scripts: {scripts}')
-    if scripts:
+    if scripts := parseDOM(html, 'script', attrs={'id': '__NEXT_DATA__'}):
         try:
             item_meta = json.loads(scripts[0])
             # logger(f'item_meta1: {item_meta}')
@@ -191,11 +198,7 @@ def getimdbid(meta):
                 title = re.sub(r'\d{1,2}', '', title)
                 # logger(f'title: {repr(title)} id_title: {repr(id_title)} year: {repr(year)} id_year: {repr(id_year)}')
                 try:
-                    if title in id_title and year == int(id_year):
-                        # logger(f'item: {item["titleNameText"]}')
-                        meta.update({'title': id_title, 'year': int(id_year), 'imdb_id': item["id"]})
-                        break
-                    elif title in id_title:
+                    if title in id_title:
                         # logger(f'item: {item["titleNameText"]}')
                         meta.update({'title': id_title, 'year': int(id_year), 'imdb_id': item["id"]})
                         break
@@ -220,12 +223,12 @@ def get_datajson_imdb(metadict):
         item_meta1 = item_meta["props"]["pageProps"]["aboveTheFoldData"]
         # logger(f'item_meta1: {item_meta1}')
         try:
-            year = item_meta1['releaseYear']['year']
-            if year: metadict.update({'year': year})
+            if year := item_meta1['releaseYear']['year']:
+                metadict.update({'year': year})
         except: pass
         try:
-            ratings = item_meta1['ratingsSummary']['aggregateRating']
-            if ratings: metadict.update({'rating': ratings})
+            if ratings := item_meta1['ratingsSummary']['aggregateRating']:
+                metadict.update({'rating': ratings})
         except: pass
         try:
             rgen = item_meta1['genres']['genres']
@@ -234,22 +237,24 @@ def get_datajson_imdb(metadict):
             metadict.update({'genre': genres})
 
             plot = item_meta1['plot']['plotText']['plainText']
-            plot = replace_html_codes(plot)
-            if plot: metadict.update({'plot': plot})
+            if plot := replace_html_codes(plot):
+                metadict.update({'plot': plot})
         except: pass
         try:
-            certf = item_meta1['certificate']['rating']
-            if certf: metadict.update({'mpaa': certf})
+            if certf := item_meta1['certificate']['rating']:
+                metadict.update({'mpaa': certf})
         except: pass
         item_meta2 = item_meta["props"]["pageProps"]["mainColumnData"]
         # logger(f'item_meta2: {item_meta2}')
         try:
-            runtime = item_meta2['runtime']['seconds']
-            if runtime: metadict.update({'duration': runtime})
+            if runtime := item_meta2['runtime']['seconds']:
+                metadict.update({'duration': runtime})
         except: pass
         try:
-            poster = item_meta2['titleMainImages']['edges'][0]['node']['url']
-            if poster: metadict.update({'poster': poster})
+            if poster := item_meta2['titleMainImages']['edges'][0]['node'][
+                'url'
+            ]:
+                metadict.update({'poster': poster})
         except: pass
         try:
             episodes = item_meta2['episodes']['episodes']['total']
@@ -257,44 +262,53 @@ def get_datajson_imdb(metadict):
             seasons = ', '.join(str(x['number']) for x in seasons if str(x) != '')  # seasons = [x['number'] for x in seasons if x != '']
             if episodes and seasons: metadict.update({'episodes': episodes, 'seasons': seasons})
         except: pass
-        ctitle = item_meta1['titleText']['text']
-        if ctitle: metadict.update({'title': ctitle})
+        if ctitle := item_meta1['titleText']['text']:
+            metadict.update({'title': ctitle})
     except:
         logger(f"get_datajson_imdb Error: {traceback.print_exc()}")
         items = parseDOM(result, 'div', attrs={'class': 'ipc-page-content-container.+?'})
         try:
             duration_wrapper = parseDOM(items, 'ul', attrs={'class': '.+?TitleBlockMetaDat.+?'})
             duration = parseDOM(duration_wrapper, 'li', attrs={'class': 'ipc-inline-list__item'})
-            if metadict['mediatype'] == 'movie': duration = duration[1]
-            else: duration = duration[2]
+            duration = duration[1] if metadict['mediatype'] == 'movie' else duration[2]
             dur = duration.replace('<!-- -->', '')
-            duration = get_sec_string(dur)
-            if duration: metadict.update({'duration': duration})
+            if duration := get_sec_string(dur):
+                metadict.update({'duration': duration})
         except: pass
         try:
             poster = parseDOM(items, 'img', attrs={'class': '.+?ipc-image.+?'}, ret='src')[0]
             if '/nopicture/' in poster: poster = '0'
             poster = re.sub(r'(?:_SX|_SY|_UX|_UY|_CR|_AL)(?:\d+|_).+?\.', '_SX500.', poster)
-            poster = replace_html_codes(poster)
-            if poster: metadict.update({'poster': poster})
+            if poster := replace_html_codes(poster):
+                metadict.update({'poster': poster})
         except: pass
         try:
             # genresplot_wrapper = parseDOM(items, 'div', attrs={'class': '.+?GenresAndPlot__ContentParent.+?'})
             # logger(f'Total: {len(genresplot_wrapper)} duration_wrapper: {genresplot_wrapper}')
             genres_wrapper = parseDOM(items, 'a', attrs={'class': '.+?GenresAndPlot__GenreChip.+?'})
-            genre = [item.replace('<span class="ipc-chip__text" role="presentation">', '').replace('</span>', '') for item in genres_wrapper if item]
-            if genre: metadict.update({'genre': genre})
+            if genre := [
+                item.replace(
+                    '<span class="ipc-chip__text" role="presentation">', ''
+                ).replace('</span>', '')
+                for item in genres_wrapper
+                if item
+            ]:
+                metadict.update({'genre': genre})
         except: pass
         try:
             plot_wrapper = parseDOM(items, 'p', attrs={'class': '.+?GenresAndPlot__Plot.+?'})
             plot = parseDOM(plot_wrapper, 'span', attrs={'class': 'GenresAndPlot__TextContainerBreakpoint.+?'})[0]
-            plot = span_clening(plot)
-            if plot: metadict.update({'plot': plot})
+            if plot := span_clening(plot):
+                metadict.update({'plot': plot})
         except: pass
         try:
             rating_wrapper = parseDOM(items, 'div', attrs={'class': 'AggregateRatingButton__ContentWrap.+?'})
-            rating = parseDOM(rating_wrapper, 'span', attrs={'class': 'AggregateRatingButton__RatingScore.+?'})[0]
-            if rating: metadict.update({'rating': rating})
+            if rating := parseDOM(
+                rating_wrapper,
+                'span',
+                attrs={'class': 'AggregateRatingButton__RatingScore.+?'},
+            )[0]:
+                metadict.update({'rating': rating})
         except: pass
         try:
             mpaa_wrapper = parseDOM(items, 'div', attrs={'class': 'UserRatingButton.+?'})
@@ -305,8 +319,12 @@ def get_datajson_imdb(metadict):
         except: pass
         try:
             title_wrapper = parseDOM(items, 'div', attrs={'class': 'TitleBlock__TitleContainer.+?'})
-            title = parseDOM(title_wrapper, 'h1', attrs={'class': 'TitleHeader__TitleText.+?'})[0]
-            if title: metadict.update({'title': title})
+            if title := parseDOM(
+                title_wrapper,
+                'h1',
+                attrs={'class': 'TitleHeader__TitleText.+?'},
+            )[0]:
+                metadict.update({'title': title})
         except: pass
         try:
             year_wrapper = parseDOM(items, 'span', attrs={'class': 'TitleBlockMetaData__ListItemText.+?'})
@@ -314,7 +332,7 @@ def get_datajson_imdb(metadict):
             except: year = 2023
             if year: metadict.update({'year': year})
         except: pass
-        # metadict.update({'title': title, 'year': year, 'rating': rating, 'plot': plot, 'mpaa': mpaa, 'duration': duration, 'genre': genres, 'poster': poster})
+            # metadict.update({'title': title, 'year': year, 'rating': rating, 'plot': plot, 'mpaa': mpaa, 'duration': duration, 'genre': genres, 'poster': poster})
     # logger(f'>>> {metadict}')
     return metadict
 
@@ -342,9 +360,7 @@ def get_sec_string(str_time):
     if hrs_s: hrs_s = int(hrs_s[0]) * 60 * 60
     min_s = re.findall(min_str, str_time)
     if min_s: min_s = int(min_s[0]) * 60
-    duration = hrs_s + min_s
-    # logger(duration)
-    return duration
+    return hrs_s + min_s
 
 
 def span_clening(span_text):
@@ -364,8 +380,8 @@ def span_clening(span_text):
 def get_duplic(links_list):
     # links_list = [{'title': 'Anwar Ka Ajab Kissa','tmdb_id': 'Anwar Ka Ajab Kissa|2013'}, {'title': 'Anwar Ka Ajab Kissa','tmdb_id': 'Anwar Ka Ajab Kissa|2020'}, {'title': 'Ardhangini','tmdb_id': 'Ardhangini|1959'}, {'title': "Class Of '83",'tmdb_id': "Class Of '83|2020"}, {'title': 'Class Of 83','tmdb_id': 'Class Of 83|2020'}, {'title': 'Julie','tmdb_id': 'Julie|1975'}, {'title': 'Julie','tmdb_id': 'Julie|Season 1'} ]
     # logger(f"strating len: {len(links_list)}")
-    uniqueValues = list()
-    duplicateValues = list()
+    uniqueValues = []
+    duplicateValues = []
     duplicatedict = []
     for d in links_list:
         if d["title"].lower() not in uniqueValues: uniqueValues.append(d["title"].lower())
@@ -384,8 +400,7 @@ def analyze_imdbid(href):
     re_imdbid = re.compile(r'(title/tt|name/nm|company/co|user/ur)([0-9]+)')
     if not href: return None
     match = re_imdbid.search(href)
-    if not match: return None
-    return str(match.group(2))
+    return str(match[2]) if match else None
 
 
 def get_plot_tvshow(show_url=None):
@@ -403,9 +418,7 @@ def get_plot_tvshow(show_url=None):
     result = parseDOM(result1, "div", attrs={"id": "content"})
     # logger(f"result: {result[0]}")
     p = parseDOM(result, 'div', attrs={"class": "page-content"})
-    p = parseDOM(p, 'div', attrs={"class": "page-content"})
-    # logger(f"p1: {p}")
-    if p:
+    if p := parseDOM(p, 'div', attrs={"class": "page-content"}):
         title_overview = re.findall(r'<p>(.+?)</p>', str(p))
         # logger(f"title_overview: {title_overview}")
         try: plot = title_overview[0].replace('<br/><br/>', '').replace('\\n', '').strip()
@@ -448,8 +461,7 @@ def get_movies(params):
     # iconImage = params['iconImage']
     pg_no = params['pg_no']
     movies = results = next_p = []
-    movies_page = scrapePage(url)
-    if movies_page:
+    if movies_page := scrapePage(url):
         results = parseDOM(movies_page.text, "h3", attrs={"class": "threadtitle"})
         next_p = parseDOM(movies_page.text, "span", attrs={"class": "prev_next"})
     for item in results:
@@ -472,8 +484,8 @@ def get_movies(params):
             url = parseDOM(item, "a", ret="href")
             if not url: url = parseDOM(item, "a", attrs={"class": "title"}, ret="href")
             if type(url) is list and len(url) > 0: url = str(url[0])
-            url = urljoin(desirule_url, url) if not url.startswith(desirule_url) else url
-            if title and not any([x in title for x in non_str_list]):
+            url = url if url.startswith(desirule_url) else urljoin(desirule_url, url)
+            if title and all(x not in title for x in non_str_list):
                 title = keepclean_title(title)
                 tmdb_id = gettmdb_id('movie', title, year, None)
                 meta = fetch_meta(mediatype='movie', title=title, tmdb_id=tmdb_id, homepage=url, year=year)
@@ -482,8 +494,7 @@ def get_movies(params):
 
     if next_p:
         next_p_url = parseDOM(next_p, "a", attrs={"rel": "next"}, ret="href")[0]
-        if "?" in next_p_url: url = next_p_url.split("?")[0]
-        else: url = next_p_url
+        url = next_p_url.split("?")[0] if "?" in next_p_url else next_p_url
         try:
             pg_no = re.compile(r'page\d{1,2}').findall(url)[0]
             pg_no = pg_no.replace('page', '')
@@ -504,15 +515,7 @@ def get_movies_desicinemas(params):
     ch_name = params['ch_name']
     pg_no = params['pg_no']
     movies = results = next_p = []
-    # m_url = 'https://desicinemas.tv/movies/'
-    movies_page = scrapePage(m_url)
-    # movies_page = to_utf8(remove_accents(movies_page))
-    # movies_page = movies_page.replace('\n', ' ')
-    # read_write_file(read=False, result=movies_page)
-    # movies_page = read_write_file()
-    # logger(f'movies_page: {movies_page}')
-    # result = parseDOM(result, "div", attrs={"class": "Main Container"})
-    if movies_page:
+    if movies_page := scrapePage(m_url):
         results = parseDOM(movies_page.text, "li", attrs={"class": "TPostMv post-.+?"})
         next_p = parseDOM(movies_page.text, "div", attrs={"class": "nav-links"})
     # logger(f"total episodes: {len(result)} result: {result}")
@@ -571,8 +574,7 @@ def get_tv_shows_desitelly(params):
     ch_name = params['ch_name']
     iconImage = params['iconImage']
     shows = results = []
-    show_page = scrapePage(base_url)
-    if show_page:
+    if show_page := scrapePage(base_url):
         results = parseDOM(show_page.text, "div", attrs={"class": "vc_column_container col-md-3"})
         results += parseDOM(show_page.text, "div", attrs={"class": "vc_column_container col-md-4"})
     # logger(f"result shows: {result}")
@@ -738,8 +740,7 @@ def getmeta_n_update_common():
             upd_data += 1
             if upd_data > 15: break
             logger(f"new_search: {new_search} title: {d['title']}  imdb_id : {imdb_id}")
-            imdbdata = get_datajson_imdb(d)
-            if imdbdata:
+            if imdbdata := get_datajson_imdb(d):
                 logger(f'imdb_id imdbdata: {imdbdata}')
                 d = meta_merge_update(d, imdbdata)
             # metacache.set(mediatype, 'tmdb_id', d)

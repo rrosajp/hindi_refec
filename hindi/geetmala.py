@@ -52,7 +52,7 @@ def groot(param):
         thumb = item['thumb']
         listitem.setLabel(item['title'])
 
-        cm_append(("[B]Rescrape Root[/B]", 'RunPlugin(%s)' % build_url(new_params)))
+        cm_append(("[B]Rescrape Root[/B]", f'RunPlugin({build_url(new_params)})'))
         cm_append(("[B]Add to a Shortcut Folder[/B]", 'RunPlugin(%s)' % build_url({'mode': 'menu_editor.shortcut_folder_add_item', 'name': item['title'], 'iconImage': thumb})))
         listitem.setArt({'icon': thumb, 'poster': thumb, 'thumb': thumb, 'fanart': addon_fanart, 'banner': thumb})
         listitem.addContextMenuItems(cm)
@@ -207,8 +207,10 @@ def get_song_list(params):
                 'Album': item['Album']}
             cm_append(("[B]Rescrape and Select[/B]", f'RunPlugin({build_url(rescrape_params)})'))
             is_folder = True
-            if 'Next Page:' in title: info.update({'plot': 'Go To Next Page....'})
-            else: info.update({'plot': f"Album: {item['Album']}\nArtist: {item['Artist']}"})
+            if 'Next Page:' in title:
+                info['plot'] = 'Go To Next Page....'
+            else:else
+                info['plot'] = f"Album: {item['Album']}\nArtist: {item['Artist']}"
             listitem = make_listitem()
             listitem.setLabel(title)
             info.update({'imdb_id': title, 'mediatype': 'episode', 'episode': 1, 'season': 0})
@@ -233,11 +235,9 @@ def get_song_list(params):
 def get_SearchQuery(sitename):
     import xbmc
     keyboard = xbmc.Keyboard()
-    keyboard.setHeading('Search ' + sitename)
+    keyboard.setHeading(f'Search {sitename}')
     keyboard.doModal()
-    search_text = ''
-    if keyboard.isConfirmed(): search_text = keyboard.getText()
-    return search_text
+    return keyboard.getText() if keyboard.isConfirmed() else ''
 
 
 def make_song_list(params):
@@ -260,8 +260,7 @@ def make_song_list(params):
                 # Album = find_data.findall(Album)[0]
                 m_name = find_data.findall(Album)[0]
                 m_year = re.findall(r"\(.+?\)", Album, re.MULTILINE)
-                if m_year: m_year = m_year[0].replace("(", "").replace(")", "")
-                else: m_year = ""
+                m_year = m_year[0].replace("(", "").replace(")", "") if m_year else ""
                 Album = f"{m_name} - {m_year}"
 
                 Artist = parseDOM(item, "span", attrs={"itemprop": "byArtist"})[0]
@@ -304,8 +303,7 @@ def resolve_url(url, ltype):
     try:
         import resolveurl
         hmf = resolveurl.HostedMediaFile(url=url)
-        if hmf.valid_url() is True: return hmf.resolve()
-        else: return ''
+        return hmf.resolve() if hmf.valid_url() is True else ''
     except Exception as e:
         msg = f"for: {e} Error: {ltype}"
         notification(f'Infinite not resolved\n{msg}', 5000)
@@ -322,20 +320,20 @@ def get_yt_vid_links(url, title, Album):
     try:
         link = parseDOM(result, 'iframe', ret='src')[0]
         if 'youtube.com/embed' in link:
-            v_id = link.replace('https://www.youtube.com/embed/', '').strip()
-            # v_link = resolve_url(link, "Song")
-            # logger('resolver return for Song: %s v_link: %s' % (url, v_link))
-            if v_id:  # and "http" in v_link:
+            if v_id := link.replace(
+                'https://www.youtube.com/embed/', ''
+            ).strip():
                 v_link = f"plugin://plugin.video.youtube/play/?video_id={v_id}"
-                choices.append({"title": "Song : %s" % title, "url": v_link})
+                choices.append({"title": f"Song : {title}", "url": v_link})
     except:
         result = parseDOM(vid_page, "div", attrs={"class": "yt_nt"})
         # print(f"result: {result}")
         results = parseDOM(result, "a", attrs={"class": "yt_nt"})
         # print(f"results: {results}")
         for item in results:
-            v_id = item.replace('https://www.youtube.com/watch?v=', '').strip()
-            if v_id:
+            if v_id := item.replace(
+                'https://www.youtube.com/watch?v=', ''
+            ).strip():
                 v_link = f"plugin://plugin.video.youtube/play/?video_id={v_id}"
                 choices.append({"title": f"Song : {title}", "url": v_link})
         if len(choices) > 1: return choices
@@ -353,11 +351,12 @@ def get_yt_vid_links(url, title, Album):
                 # logger('from youtube movie links: %s' % movie_link)
                 for link in movie_link:
                     v_id = link.replace('https://www.youtube.com/watch?v=', '').strip()
-                    # v_link = resolve_url(link, "Movie")
-                    v_link = f"plugin://plugin.video.youtube/play/?video_id={v_id}"
-                    if v_link: choices.append({"title": f"Movie: {Album}", "url": v_link})
+                    if (
+                        v_link := f"plugin://plugin.video.youtube/play/?video_id={v_id}"
+                    ):
+                        choices.append({"title": f"Movie: {Album}", "url": v_link})
         except: pass
-    if not len(choices) > 1: choices = Movie_search().search(Album, choices)
+    if len(choices) <= 1: choices = Movie_search().search(Album, choices)
     return choices
 
 
@@ -415,16 +414,14 @@ class Movie_search:
 
     def search(self, name, choices):
         try:
-            query = name + ' full|Full movie|Movie'
+            query = f'{name} full|Full movie|Movie'
             query_url = self.search_link % quote_plus(query)
             # logger(f"query: {query}")
 
             query_url += "&relevanceLanguage=en"
             headers = {"Accept": "application/json"}
             response = requests.get(query_url, headers=headers).json()
-            # logger(f'search json response {response} ')
-            error = response.get('error', [])
-            if error:
+            if error := response.get('error', []):
                 message = error.get('message', [])
                 logger(f"message: {message}")
                 return None
@@ -437,23 +434,24 @@ class Movie_search:
                     query = query.split('-')[0].lower().replace('.', '')
                     item_title = normalize(search_result["snippet"]["title"].replace('.', ''))
                     # item_title = replace_html_codes(search_result["snippet"]["title"].replace('.', ''))
-                    if re.search(r'Full Movie|Movie', item_title, re.I) and re.search(query, item_title, re.I):
-                        # logger(f'search item {query} == {item_title}')
-                        # if query in item_title.lower() and "movie" in item_title.lower():
-                        if search_result["id"]["kind"] == "youtube#video":
-                            vid_id = search_result["id"]["videoId"]
-                            payload = {'id': vid_id, 'part': 'contentDetails', 'key': self.key}
-                            url = 'https://www.googleapis.com/youtube/v3/videos/?&%s' % urlencode(payload)
-                            resp_dict = requests.get(url, headers=headers).json()
-                            # resp_dict = self.session.get('https://www.googleapis.com/youtube/v3/videos', params=payload).json()
-                            dur = resp_dict["items"][0]["contentDetails"]["duration"]
-                            duration = convert_youtube_duration_to_minutes(dur)
-                            # logger(f'dur: {dur} duration: {duration}')
-                            if duration > 70:
-                                # item_title = clean_title(item_title)
-                                v_link = f"plugin://plugin.video.youtube/play/?video_id={vid_id}"
-                                # logger(f'item_title: {item_title} v_link: {v_link}')
-                                choices.append({"title": f"Movie: ({duration} minutes) {item_title}", "url": v_link})
+                    if (
+                        re.search(r'Full Movie|Movie', item_title, re.I)
+                        and re.search(query, item_title, re.I)
+                        and search_result["id"]["kind"] == "youtube#video"
+                    ):
+                        vid_id = search_result["id"]["videoId"]
+                        payload = {'id': vid_id, 'part': 'contentDetails', 'key': self.key}
+                        url = f'https://www.googleapis.com/youtube/v3/videos/?&{urlencode(payload)}'
+                        resp_dict = requests.get(url, headers=headers).json()
+                        # resp_dict = self.session.get('https://www.googleapis.com/youtube/v3/videos', params=payload).json()
+                        dur = resp_dict["items"][0]["contentDetails"]["duration"]
+                        duration = convert_youtube_duration_to_minutes(dur)
+                        # logger(f'dur: {dur} duration: {duration}')
+                        if duration > 70:
+                            # item_title = clean_title(item_title)
+                            v_link = f"plugin://plugin.video.youtube/play/?video_id={vid_id}"
+                            # logger(f'item_title: {item_title} v_link: {v_link}')
+                            choices.append({"title": f"Movie: ({duration} minutes) {item_title}", "url": v_link})
                 except: logger(f'Error: {traceback.print_exc()}')
         except: logger(f'Error: {traceback.print_exc()}')
         # logger(f'choices: {choices}')

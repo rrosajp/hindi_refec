@@ -67,7 +67,7 @@ def _process(list_data):
         listitem.setLabel(title)
         listitem.addContextMenuItems(cm)
         listitem.setArt({'icon': icon, 'poster': thumb, 'thumb': thumb, 'clearart': thumb, 'clearlogo': thumb})
-        info.update({'imdb_id': title, 'mediatype': 'episode', 'episode': 1, 'season': 0})
+        info |= {'imdb_id': title, 'mediatype': 'episode', 'episode': 1, 'season': 0}
         setUniqueIDs = {'imdb': str(title)}
         listitem = set_info(listitem, info, setUniqueIDs)
         yield url, listitem, is_folder
@@ -81,8 +81,7 @@ def get_distro_data():
         # distro_data = get_data_from_web()
         # main_cache.set(cache_name, distro_data, expiration=datetime.timedelta(hours=168))  # 1 days cache
         # return distro_data
-    distro_data = get_data_from_web()
-    return distro_data
+    return get_data_from_web()
 
 
 def _distro_live_vod(list_name):
@@ -91,16 +90,12 @@ def _distro_live_vod(list_name):
     distro_items = []
     title_list = []
     for t in topics:
-        title = t['title']
         Type = t['type']
         if Type == list_name:
+            title = t['title']
             # logger(title)
             title_list.append(title)
             distro_items.append({'list_name': list_name, 'url': title, 'isFolder': True, 'mode': 'distro_get_items', 'title': title, 'meta': {'year': '', 'poster': '', 'plot': '', 'genre': ''}})
-        elif Type == list_name:
-            # logger(t)
-            title_list.append(title)
-            distro_items.append({'list_name': list_name, 'url': title, 'isFolder': True, 'mode': 'distro_get_items', 'title': title, 'meta': {'year': '', 'poster': '', 'plot': '', 'genre': ''}})  # addDir(title, title, 3, addon_icon, addon_fanart, title)
     return distro_items
 
 
@@ -126,25 +121,24 @@ def _distro_live_cats(url, list_name):
     for t in topics:
         title = t['title']
         Type = t['type']
-        if Type == "live":
-            if url == title:
-                # logger(t)
-                shows = t['shows']
-                for s in shows:
-                    s = str(s)
-                    # logger(s)
-                    Show = data['shows'][s]['title']  #.encode('utf-8')
-                    rating = data['shows'][s]['rating']
-                    summary = data['shows'][s]['description']  #.encode('utf-8')
-                    image = data['shows'][s]['img_thumbv']
-                    # fanart = data['shows'][s]['img_poster']
-                    genre = data['shows'][s]['genre']
-                    year = data['shows'][s]['pubdate']
-                    # res = s + "**" + fanart
-                    # logger(res)
-                    link = data['shows'][s]['seasons'][0]['episodes'][0]['content']['url']
-                    # logger(title)
-                    distro_items.append({'list_name': list_name, 'url': link, 'isFolder': False, 'mode': 'distro_pls', 'title': Show, 'meta': {'year': year, 'poster': image, 'plot': summary, 'genre': genre, 'rating': rating}, })  # addDirVid(Show, link, 101, image, fanart, summary)
+        if Type == "live" and url == title:
+            # logger(t)
+            shows = t['shows']
+            for s in shows:
+                s = str(s)
+                # logger(s)
+                Show = data['shows'][s]['title']  #.encode('utf-8')
+                rating = data['shows'][s]['rating']
+                summary = data['shows'][s]['description']  #.encode('utf-8')
+                image = data['shows'][s]['img_thumbv']
+                # fanart = data['shows'][s]['img_poster']
+                genre = data['shows'][s]['genre']
+                year = data['shows'][s]['pubdate']
+                # res = s + "**" + fanart
+                # logger(res)
+                link = data['shows'][s]['seasons'][0]['episodes'][0]['content']['url']
+                # logger(title)
+                distro_items.append({'list_name': list_name, 'url': link, 'isFolder': False, 'mode': 'distro_pls', 'title': Show, 'meta': {'year': year, 'poster': image, 'plot': summary, 'genre': genre, 'rating': rating}, })  # addDirVid(Show, link, 101, image, fanart, summary)
     return distro_items
 
 
@@ -173,31 +167,29 @@ def _distro_vod_cats(url, list_name):
     for t in topics:
         title = t['title']
         Type = t['type']
-        if Type == "vod":
-            # logger(t)
-            if url == title:
-                shows = t['shows']
+        if Type == "vod" and url == title:
+            shows = t['shows']
                 # logger(shows)
-                for s in shows:
-                    s = str(s)
-                    Show = data['shows'][s]['title']  #.encode('utf-8')
-                    rating = data['shows'][s]['rating']
-                    summary = data['shows'][s]['description']  #.encode('utf-8')
-                    image = data['shows'][s]['img_thumbv']
-                    # fanart = data['shows'][s]['img_poster']
-                    # genre = data['shows'][s]['genre']
-                    year = data['shows'][s]['pubdate']
-                    episodes = data['shows'][s]['seasons'][0]['episodes']
-                    res = "%s**%s" % (s, image)
-                    if len(episodes) > 1:
-                        # addDir(Show, res, 5, image, fanart, summary)
-                        distro_items.append({'list_name': list_name, 'url': res, 'isFolder': True, 'mode': 'distro_get_items', 'title': Show, 'meta': {'year': year, 'poster': image, 'plot': summary, 'genre': '', 'rating': rating}})
+            for s in shows:
+                s = str(s)
+                Show = data['shows'][s]['title']  #.encode('utf-8')
+                rating = data['shows'][s]['rating']
+                summary = data['shows'][s]['description']  #.encode('utf-8')
+                image = data['shows'][s]['img_thumbv']
+                # fanart = data['shows'][s]['img_poster']
+                # genre = data['shows'][s]['genre']
+                year = data['shows'][s]['pubdate']
+                episodes = data['shows'][s]['seasons'][0]['episodes']
+                res = f"{s}**{image}"
+                if len(episodes) > 1:
+                    # addDir(Show, res, 5, image, fanart, summary)
+                    distro_items.append({'list_name': list_name, 'url': res, 'isFolder': True, 'mode': 'distro_get_items', 'title': Show, 'meta': {'year': year, 'poster': image, 'plot': summary, 'genre': '', 'rating': rating}})
 
-                    else:
-                        link = data['shows'][s]['seasons'][0]['episodes'][0]['content']['url']
-                        duration = data['shows'][s]['seasons'][0]['episodes'][0]['content']['duration']
-                        # addDirVid(Show, link, 101, image, fanart, summary)
-                        distro_items.append({'list_name': list_name, 'url': link, 'isFolder': False, 'mode': 'distro_pls', 'title': Show, 'meta': {'duration': duration, 'year': year, 'poster': image, 'plot': summary, 'genre': '', 'rating': rating}})
+                else:
+                    link = data['shows'][s]['seasons'][0]['episodes'][0]['content']['url']
+                    duration = data['shows'][s]['seasons'][0]['episodes'][0]['content']['duration']
+                    # addDirVid(Show, link, 101, image, fanart, summary)
+                    distro_items.append({'list_name': list_name, 'url': link, 'isFolder': False, 'mode': 'distro_pls', 'title': Show, 'meta': {'duration': duration, 'year': year, 'poster': image, 'plot': summary, 'genre': '', 'rating': rating}})
     return distro_items
 
 

@@ -53,8 +53,9 @@ monthdict = {
 
 
 def get_int_epi(episode):
-    episode_int = re.search(r'(\d{1,2}(st|nd|rd|th))(.*?)(\d{2,4})', episode)
-    if episode_int:
+    if episode_int := re.search(
+        r'(\d{1,2}(st|nd|rd|th))(.*?)(\d{2,4})', episode
+    ):
         episode_int = episode_int.group()
         month = monthdict.get(episode_int.split(' ')[1])
         try:
@@ -64,14 +65,12 @@ def get_int_epi(episode):
             # day = re.search(r'\d{2}', episode).group()
             year = re.search(r'\d{4}$', episode).group()
         except: day, year = '0', '0'
-        if month is None: season = day
-        else: season = f'{month}{day}'
+        season = day if month is None else f'{month}{day}'
         # logger(f'{season}, {year}')
         return season, year
     else:
         epis_no = re.search(r'\d{1,2}', episode)
-        if epis_no: epis_no = epis_no.group()
-        else: epis_no = 0
+        epis_no = epis_no.group() if epis_no else 0
         # logger(f'day: {epis_no}')
         return epis_no, 0
 
@@ -84,29 +83,24 @@ def find_season_in_title(release_title):
         try:
             match = re.search(item, release_title)
             if match:
-                match = int(str(match.group(1)).lstrip('0'))
+                match = int(str(match[1]).lstrip('0'))
                 break
             else: match = 1
-            # logger(f'not match: {item}')
+                    # logger(f'not match: {item}')
         except: pass
     return match
 
 
 def string_date_to_num(string):
-    # logger(f'string: {string} ')
-    # date_str = re.search(r'(\d{1,2}(st|nd|rd|th))(.*?)(\d{2,4})', string).group()
-    date_str = re.search(exctract_date, string)
-    # logger(f'date_str: {date_str}')
-    if date_str:
+    if date_str := re.search(exctract_date, string):
         date_str = date_str.group()
         month = monthdict.get(date_str.split(' ')[1])
         d = re.search(r'^\d+(st|nd|rd|th)', date_str).group()
         day = re.sub("(st|nd|rd|th)", "", d)
         year = re.search(r'\d{4}$', date_str).group()
-        date = f"{year}-{month:0>2}-{day:0>2}"
-        # logger(f'date: {date}')
-        return date
-    else: return "2022-01-01"
+        return f"{year}-{month:0>2}-{day:0>2}"
+    else:
+        return "2022-01-01"
 
 
 def keepclean_title(title, episod=False):
@@ -148,7 +142,7 @@ def multiple_replace(dict, text):
         "&lt;": "<", }
     """
     # Create a regular expression  from the dictionary keys
-    regex = re.compile("(%s)" % "|".join(map(re.escape, dict.keys())))
+    regex = re.compile(f'({"|".join(map(re.escape, dict.keys()))})')
     # For each match, look-up corresponding value in dictionary
     return regex.sub(lambda mo: dict[mo.string[mo.start():mo.end()]], text)
 
@@ -210,8 +204,7 @@ def convert_time_str_to_seconds(timestr):
     if re.findall(r'\d{1,2}:\d{2}:\d{2}', timestr): timestr = timestr
     elif re.findall(r'\d{2}:\d{2}', timestr): timestr = f"00:{timestr}"
     ftr = [3600, 60, 1]
-    seconds = sum([a*b for a, b in zip(ftr, map(int, timestr.split(':')))])
-    return seconds
+    return sum(a*b for a, b in zip(ftr, map(int, timestr.split(':'))))
 
 
 def removeNonAscii(s):
@@ -232,9 +225,7 @@ def get_by_id(dict_list, expid=False):
     :param expid:
     :return: dict list with key service is False
     """
-    filter_list = [item for item in dict_list if item['service'] == expid] # all items which macht condition
-    # filter_list = next(x for x in vals if x['service'] == expid) # fist mathc of condition
-    return filter_list
+    return [item for item in dict_list if item['service'] == expid]
 
 
 def _get_timefrom_timestamp(timestamp):

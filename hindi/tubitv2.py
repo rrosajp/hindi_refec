@@ -221,7 +221,7 @@ class Common:
     @staticmethod
     def random_generator(size=6, chars=string.ascii_uppercase + string.digits):
         # Added '# nosec' to suppress bandit warning since this is not used for security/cryptographic purposes.
-        return ''.join(random.choice(chars) for x in range(size))  # nosec
+        return ''.join(random.choice(chars) for _ in range(size))
 
     @staticmethod
     # Parse string and extracts first match as a string
@@ -235,41 +235,40 @@ class Common:
         return result
 
     @staticmethod
-    # Parse string and extracts multiple matches using regular expressions
     def find_multiple_matches(text, pattern):
-        matches = re.findall(pattern, text, re.DOTALL)
-        return matches
+        return re.findall(pattern, text, re.DOTALL)
 
     @staticmethod
-    # Open URL
     def open_url(url, user_agent=True):
-        if not user_agent: header = {'User-Agent': Common.UA}
-        else: header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11' 'KODI'}
+        header = (
+            {
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11'
+                'KODI'
+            }
+            if user_agent
+            else {'User-Agent': Common.UA}
+        )
+
         # logger(f"Common get_stream_and_play header: {header}")
         httpHeaders = {'Accept': "application/json, text/javascript, text/html,*/*",
                        'Accept-Encoding': 'gzip,deflate,sdch',
                        'Accept-Language': 'en-US,en;q=0.8'
                        }
-        response = scrapePage(url, headers=header).text
-        # logger(f"Common open_url response: {response}")
-        return response
+        return scrapePage(url, headers=header).text
 
     @staticmethod
-    # Available channels
     def get_channels():
         url = f"{stream_plug}index.json"
         # logger(f"get_channels url: {url}")
         data = Common.open_url(url)
-        channel_list = json.loads(data)
-        return channel_list
+        return json.loads(data)
 
     @staticmethod
     def search_channels(query):
         url = f"{stream_plug}?search={query}"
         # logger(f"search_channels url: {url}")
         data = Common.open_url(url)
-        channel_list = json.loads(data)
-        return channel_list
+        return json.loads(data)
 
     @staticmethod
     def add_streams(streams):
@@ -294,8 +293,7 @@ class Common:
 
     @staticmethod
     def add_channel(mode, icon, fanart, title=None, meta={}, live=True):
-        if title is not None: item = str(title)
-        else: item = str(mode)
+        item = str(title) if title is not None else str(mode)
         if live is True: u = f"{argv[0]}?mode={str(mode)}&pvr=.pvr&title={item}"  # argv[0] + "?mode=" + str(mode) + "&pvr=.pvr"
         else: u = f"{argv[0]}?mode={str(mode)}&title={item}"  # argv[0] + "?mode=" + str(mode)
         # logger(f"get_channels meta: {meta}")
@@ -306,12 +304,12 @@ class Common:
         listitem.setArt({'thumb': icon, 'poster': icon, 'banner': icon, 'fanart': fanart})
         try: meta.update({'title': item})
         except: meta = {'title': item}
-        meta.update({'imdb_id': str(item), 'episode': 1, 'season': 0})
-        setUniqueIDs = {'imdb': str(item)}
+        meta |= {'imdb_id': item, 'episode': 1, 'season': 0}
+        setUniqueIDs = {'imdb': item}
         listitem = set_info(listitem, meta, setUniqueIDs)
-        ok = xbmcplugin.addDirectoryItem(handle=int(argv[1]), url=u, listitem=listitem, isFolder=False)
-        # logger(f"get_channels ok: {ok}")
-        return ok
+        return xbmcplugin.addDirectoryItem(
+            handle=int(argv[1]), url=u, listitem=listitem, isFolder=False
+        )
 
     @staticmethod
     def add_section(mode, icon, fanart, title=None, meta={}):
@@ -320,8 +318,7 @@ class Common:
         # logger(f"Common add_section mode: {mode} title: {title}")
         cm = []
         cm_append = cm.append
-        if title is not None: item = title#.decode('UTF-8')
-        else: item = mode
+        item = title if title is not None else mode
         if icon == '': icon = aicon
         listitem = make_listitem()
         listitem.setLabel(str(item))
@@ -330,11 +327,12 @@ class Common:
         except: meta = {'title': item}
         cm_append(("[B]Add to a Shortcut Folder[/B]", f"RunPlugin({argv[0]}?mode=menu_editor.shortcut_folder_add_item&name={title}&iconImage={icon})"))
         listitem.addContextMenuItems(cm)
-        meta.update({'imdb_id': str(item), 'episode': 1, 'season': 0})
+        meta |= {'imdb_id': str(item), 'episode': 1, 'season': 0}
         setUniqueIDs = {'imdb': str(item)}
         listitem = set_info(listitem, meta, setUniqueIDs)
-        ok = xbmcplugin.addDirectoryItem(handle=int(argv[1]), url=u, listitem=listitem, isFolder=True)
-        return ok
+        return xbmcplugin.addDirectoryItem(
+            handle=int(argv[1]), url=u, listitem=listitem, isFolder=True
+        )
 
     @staticmethod
     # Return the Channel ID from YouTube URL
@@ -415,11 +413,17 @@ class Stream:
     @staticmethod
     def get_meta(year, genre, plot, duration, itemtype):
         mediatype = 'movie'
-        if itemtype == 'v':
+        if itemtype == 'tvshow':
+            mediatype = 'tvshow'
+        elif itemtype == 'v':
             if duration <= 60: mediatype = 'episode'
-        elif itemtype == 'tvshow':  mediatype = 'tvshow'
-        meta = {"year": int(year), "genre": genre, "plot": plot, "duration": duration, "mediatype": mediatype}
-        return meta
+        return {
+            "year": int(year),
+            "genre": genre,
+            "plot": plot,
+            "duration": duration,
+            "mediatype": mediatype,
+        }
 
 
     @staticmethod
@@ -429,7 +433,7 @@ class Stream:
         # logger("url {}".format(url))
         data = Common.open_url(url)
         json_results = json.loads(data)
-        for category in range(0, len(json_results['list'])):
+        for category in range(len(json_results['list'])):
             try: icon = json_results['hash'][json_results['list'][category]]['thumbnail']
             except: icon = aicon
             try:
@@ -474,9 +478,9 @@ class Stream:
         data = Common.open_url(url)
         json_results = json.loads(data)
 
-        for season in range(0, len(json_results['children'])):
+        for season in range(len(json_results['children'])):
             try:
-                for episode in range(0, len(json_results['children'][season]['children'])):
+                for episode in range(len(json_results['children'][season]['children'])):
                     if re.search(r"espanol|Español|lgbt|LGBT", str(json_results['children'][season]['children'][episode]), flags=re.I): continue
                     try: duration = json_results['children'][season]['children'][episode]['duration']
                     except: duration = 0

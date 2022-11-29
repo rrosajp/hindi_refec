@@ -261,11 +261,8 @@ class iptv:
             for i in self.categories:
                 # title = client.replaceHTMLCodes(i['title'])
                 url = i['url']
-                if i['image']:
-                    image = self.base_link + i['image']
-                else:
-                    image = i['image']
-                if i['url'] == 'random_channel':
+                image = self.base_link + i['image'] if i['image'] else i['image']
+                if url == 'random_channel':
                     mode = 'shadownet_scrape_channel'
                 else:
                     mode = 'shadownet_scrape_category'
@@ -284,23 +281,20 @@ class iptv:
                 self.channels += self.MUSIC_TV
                 self.channels += self.NEWS_TV
                 self.channels += self.SPORTS_TV
-            if url == 'self.UK_TV':
-                self.channels = self.UK_TV
-            if url == 'self.USA_TV':
-                self.channels = self.USA_TV
-            if url == 'self.MUSIC_TV':
+            elif url == 'self.MUSIC_TV':
                 self.channels = self.MUSIC_TV
-            if url == 'self.NEWS_TV':
+            elif url == 'self.NEWS_TV':
                 self.channels = self.NEWS_TV
-            if url == 'self.SPORTS_TV':
+            elif url == 'self.SPORTS_TV':
                 self.channels = self.SPORTS_TV
+            elif url == 'self.UK_TV':
+                self.channels = self.UK_TV
+            elif url == 'self.USA_TV':
+                self.channels = self.USA_TV
             for i in self.channels:
                 # title = unescape(i['title'])
                 link = self.base_link + i['url']
-                if i['image']:
-                    image = self.base_link + i['image']
-                else:
-                    image = i['image']
+                image = self.base_link + i['image'] if i['image'] else i['image']
                 self.list.append({'title': i['title'], 'url': link, 'image': image, 'mode': 'shadownet_scrape_channel'})
             self.list = sorted(self.list, key=lambda k: k['title'])
             addDirectory(self.list)
@@ -326,9 +320,8 @@ class iptv:
             # logger(f'title: {title} html: {html}')
             link = parseDOM(html, 'iframe', ret='src')[0]
             html2 = request(link)
-            link2 = re.findall('{source: "(.+?)",', html2)[0]
-            if link2:
-                link2 += '|Referer=%s' % link
+            if link2 := re.findall('{source: "(.+?)",', html2)[0]:
+                link2 += f'|Referer={link}'
                 # infinitePlayer().run(link2, 'video', {'title': title})
                 # listitem = make_listitem()
                 # listitem.setLabel(title)
@@ -336,8 +329,6 @@ class iptv:
                 # listitem.setInfo(type='Video', infoLabels={'title': title})
                 # listitem.setProperty('IsPlayable', 'true')
                 infinitePlayer().run(link2, 'video', {'title': title})
-                # player.play(link2, listitem)
-                # if player.isPlayingVideo():
             hide_busy_dialog()
             return
         except:

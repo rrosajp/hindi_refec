@@ -78,24 +78,11 @@ def m3u2list(result):
             if field == 'tvg_logo':
                 field = 'poster'
                 if value == "": value = "icon.png"
-            if field == 'group_title':
-                if value.strip() in nondesiralbe:
-                    desirable = False
+            if field == 'group_title' and value.strip() in nondesiralbe:
+                desirable = False
             # logger(f"field: {field} value: {value}")
             item_data[field] = value.strip()
         if desirable: chList.append(item_data)
-    # filter out some channel based on nondesiralbe list
-    # chList = [i for i in chList if not (i['group_title'] in nondesiralbe)]
-    # change key name in list of dict
-    # for dict_object in chList:
-    #     dict_object['poster'] = dict_object.pop('tvg_logo')
-        #  # If the key happens to not exist. you could define a default key as well:
-        # d['new_key'] = d.pop('missing_key', 'default_value')
-
-    # if chList is not []:
-        # with open(f_name, "w", encoding='utf-8') as f:
-            # f.write(json.dumps(chList))
-        # return chList
     return chList
 
 
@@ -164,15 +151,13 @@ def _process(list_data, provider):
     for i in list_data:
         # logger(f"lists _process item: {item}")
         listitem = make_listitem()
-        cm = []
         name = i['title']
         poster = i.get('poster', '')
-        if poster.startswith('http'): thumb = i['poster']
-        else: thumb = addon_icon
+        thumb = i['poster'] if poster.startswith('http') else addon_icon
         url_params = {'mode': i['action'], 'title': name, 'url': i['url'], 'provider': provider}
         url = build_url(url_params)
         options_params = {'mode': 'options_menu_choice', 'suggestion': name, 'play_params': json.dumps(url_params)}
-        cm.append(("[B]Options...[/B]", f'RunPlugin({build_url(options_params)})'))
+        cm = [("[B]Options...[/B]", f'RunPlugin({build_url(options_params)})')]
         listitem.setLabel(name)
         listitem.addContextMenuItems(cm)
         listitem.setArt({'thumb': thumb})
@@ -188,7 +173,8 @@ def play(params):
     url = params['url']
     try:
         if params['provider'] == 'pluto':
-            if 'm3u8' in url: url = '%s|User-Agent=%s&Referer=%s' % (url, agent(), url)
+            if 'm3u8' in url:
+                url = f'{url}|User-Agent={agent()}&Referer={url}'
         elif params['provider'] == 'youtube_m3u':
             # logger(f'--- Playing title: {params["title"]} url: {params["url"]}')
             cache_name = f"content_list_play_{params['url']}"
@@ -224,19 +210,16 @@ def get_playlist_video_url(url):
     # response = to_utf8(response)
     # logger(response)
     videoId = get_videoId('get_playlist_video_url', response)
-    live_yturl = 'https://www.youtube.com/watch?v=%s' % videoId[0][1]
-    return live_yturl
+    return f'https://www.youtube.com/watch?v={videoId[0][1]}'
 
 
 def get_m3u8_url(url):
     # logger(f"get_m3u8_url url: {url}")
     response = scrapePage(url).text
-    # response = read_write_file('www.youtube.com.html')
-    # response = to_utf8(response)
-    # logger(response)
-    videoId = get_videoId('get_m3u8_url', response)
-    if videoId: live_yturl = 'https://www.youtube.com/watch?v=%s' % videoId[0][1]
-    else: live_yturl = get_playlist_video_url(url)
+    if videoId := get_videoId('get_m3u8_url', response):
+        live_yturl = f'https://www.youtube.com/watch?v={videoId[0][1]}'
+    else:
+        live_yturl = get_playlist_video_url(url)
     # logger(f"live_yturl: {live_yturl}")
     response = scrapePage(live_yturl).text
     # logger(f'<<<--->>> \n{response}\n<<<--->>>')
@@ -244,10 +227,9 @@ def get_m3u8_url(url):
         live_yturl = get_playlist_video_url(url)
         response = scrapePage(live_yturl).text
         # logger(f'wget <<<--->>> \n{response}\n<<<--->>>')
-        if '.m3u8' not in response:
-            m3u_url = 'https://raw.githubusercontent.com/benmoose39/YouTube_to_m3u/main/assets/moose_na.m3u'
-            # logger(">>>")
-            return m3u_url
+    if '.m3u8' not in response:
+        return 'https://raw.githubusercontent.com/benmoose39/YouTube_to_m3u/main/assets/moose_na.m3u'
+
     end = response.find('.m3u8') + 5
     tuner = 100
     while True:
@@ -257,9 +239,7 @@ def get_m3u8_url(url):
             end = link.find('.m3u8') + 5
             break
         else: tuner += 5
-    # logger(f"{link[start: end]}")
-    m3u_url = link[start: end]
-    return m3u_url
+    return link[start: end]
 
 
 def m3u2list(response, chList):
@@ -281,7 +261,8 @@ def m3u2list(response, chList):
                 if value is None or value == 'logo N/A' or value == '.': value = ''
                 elif value.endswith('.png') or not value.endswith('.jpg'): value = value
             item_data[field.strip().lower().replace('-', '_')] = value.strip()
-        if 'tvg_logo' not in item_data: item_data.update({'tvg_logo': ''})
+        if 'tvg_logo' not in item_data:
+            item_data['tvg_logo'] = ''
         chList.append(item_data)
     #logger(f'chList: {chList}')
     return chList
