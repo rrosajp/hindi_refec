@@ -112,16 +112,11 @@ def root():
 
 def scrape_seasons(url):
     try:
-        if any([x in url for x in season_site]): url = url + 'seasons/'
-        else: url = url + 'season-watch/'
+        if any(x in url for x in season_site):
+            url = f'{url}seasons/'
+        else:else
+            url = f'{url}season-watch/'
         html = scrapePage(url).text
-        # logger(f'html: {html}')
-        # if '/page/2/' in html:
-            # page2 = url + 'page/2/'
-            # html += scrapePage(page2).text
-        # if '/page/3/' in html:
-            # page3 = url + 'page/3/'
-            # html += scrapePage(page3).text
         r = parseDOM(html, 'article', attrs={'class': 'item se seasons'})
         # logger(f'scrape_seasons r: {len(r)} r: {r}')
         for i in r:
@@ -157,8 +152,8 @@ def scrape_episodes(url):
                 try: info = re.findall('/(?:episodes|stream|stream-free|episode-lists|episode-watch)/(?:watch-|)([A-Za-z0-9-]+)', link)[0]
                 except: info = ''
                 # logger(f'scrape_episodes info: {info}')
-                if not info == '' and label != '': label = '%s - %s' % (info, label)
-                elif not info == '': label = info
+                if info:
+                    label = f'{info} - {label}' if label != '' else info
                 # elif not label == '': label = label
                 # if not info2 == '': label = '%s - %s' % (info2, label)
                 # label = unescape(label)
@@ -181,13 +176,14 @@ def scrape_source(params):
         customheaders = {
             'Host': domain,
             'Accept': '*/*',
-            'Origin': 'https://%s' % domain,
+            'Origin': f'https://{domain}',
             'X-Requested-With': 'XMLHttpRequest',
             'User-Agent': agent(),
             'Referer': params['url'],
             'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en-US,en;q=0.9'
+            'Accept-Language': 'en-US,en;q=0.9',
         }
+
         html = scrapePage(params['url']).text
         # logger(f'html: {html}')
         # html = read_write_file(file_n='JSTesting/watchgreysanatomy.online.html')
@@ -205,7 +201,7 @@ def scrape_source(params):
         except:
             logger(f'1 scrape_source Exception: \n{traceback.print_exc()}')
         try: # the rest use this.
-            post_link = 'https://%s/wp-admin/admin-ajax.php' % domain
+            post_link = f'https://{domain}/wp-admin/admin-ajax.php'
             results = re.compile("data-type='(.+?)' data-post='(.+?)' data-nume='(\d+)'>", re.DOTALL).findall(html)
             for data_type, data_post, data_nume in results:
                 payload = {'action': 'doo_player_ajax', 'post': data_post, 'nume': data_nume, 'type': data_type}
@@ -214,7 +210,7 @@ def scrape_source(params):
                 # logger(f'scrape_source type r.text: {r.text}')
                 try:
                     i = r.json()
-                    if not i['type'] == 'iframe': continue
+                    if i['type'] != 'iframe': continue
                     p = i['embed_url'].replace('\\', '')
                 except: p = parseDOM(r.text, 'iframe', ret='src')[0]
                 # logger(f'scrape_source type p: {type(p)} p: {p}')
@@ -228,18 +224,13 @@ def scrape_source(params):
 def AD(url_params, list_name, icon='DefaultFolder.png', isFolder=True):
     # cm = []
     # cm_append = cm.append
-    if url_params['image']:
-        if url_params['image'].startswith('http'): icon = url_params['image']
+    if url_params['image'] and url_params['image'].startswith('http'):
+        icon = url_params['image']
     url_params['image'] = icon
     url = build_url(url_params)
     listitem = make_listitem()
     listitem.setLabel(url_params['title'])
     listitem.setArt({'icon': icon, 'poster': icon, 'thumb': icon, 'fanart': addon_fanart, 'banner': icon, 'landscape': icon})
-    # if not 'exclude_external' in url_params:
-        # list_name = url_params['list_name'] if 'list_name' in url_params else list_name
-        # cm_append((add_menu_str,'RunPlugin(%s)'% build_url({'mode': 'menu_editor.add_external', 'name': list_name, 'iconImage': iconImage})))
-        # cm_append((s_folder_str,'RunPlugin(%s)' % build_url({'mode': 'menu_editor.shortcut_folder_add_item', 'name': list_name, 'iconImage': iconImage})))
-        # listitem.addContextMenuItems(cm)
     add_item(int(argv[1]), url, listitem, isFolder)
 
 def _end_directory():

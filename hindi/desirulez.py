@@ -101,7 +101,7 @@ def movies(params):
                 yield url, listitem, isfolder
             except: logger(f"desirulez movies {traceback.print_exc()}")
 
-    string = f"{'movies_list'}_{ch_name}_{pg_no}"
+    string = f"movies_list_{ch_name}_{pg_no}"
     params = {'url': url, 'ch_name': ch_name, 'pg_no': pg_no, 'iconImage': iconImage}
     cache_name = string + urlencode(params)
     if rescrape == 'true':
@@ -142,8 +142,7 @@ def get_movies(params):
     # iconImage = params['iconImage']
     pg_no = params['pg_no']
     movies = results = next_p = []
-    movies_page = scrapePage(url)
-    if movies_page:
+    if movies_page := scrapePage(url):
         results = parseDOM(movies_page.text, "h3", attrs={"class": "threadtitle"})
         next_p = parseDOM(movies_page.text, "span", attrs={"class": "prev_next"})
     for item in results:
@@ -166,8 +165,8 @@ def get_movies(params):
             url = parseDOM(item, "a", ret="href")
             if not url: url = parseDOM(item, "a", attrs={"class": "title"}, ret="href")
             if type(url) is list and len(url) > 0: url = str(url[0])
-            url = urljoin(desirule_url, url) if not url.startswith(desirule_url) else url
-            if title and not any([x in title for x in non_str_list]):
+            url = url if url.startswith(desirule_url) else urljoin(desirule_url, url)
+            if title and all(x not in title for x in non_str_list):
                 title = keepclean_title(title)
                 tmdb_id = gettmdb_id('movie', title, year, None)
                 meta = fetch_meta(mediatype='movie', title=title, tmdb_id=tmdb_id, homepage=url, year=year)
@@ -176,8 +175,7 @@ def get_movies(params):
 
     if next_p:
         next_p_url = parseDOM(next_p, "a", attrs={"rel": "next"}, ret="href")[0]
-        if "?" in next_p_url: url = next_p_url.split("?")[0]
-        else: url = next_p_url
+        url = next_p_url.split("?")[0] if "?" in next_p_url else next_p_url
         try:
             pg_no = re.compile(r'page\d{1,2}').findall(url)[0]
             pg_no = pg_no.replace('page', '')
@@ -198,15 +196,7 @@ def get_movies_desicinemas(params):
     ch_name = params['ch_name']
     pg_no = params['pg_no']
     movies = results = next_p = []
-    # m_url = 'https://desicinemas.tv/movies/'
-    movies_page = scrapePage(m_url)
-    # movies_page = to_utf8(remove_accents(movies_page))
-    # movies_page = movies_page.replace('\n', ' ')
-    # read_write_file(read=False, result=movies_page)
-    # movies_page = read_write_file()
-    # logger(f'movies_page: {movies_page}')
-    # result = parseDOM(result, "div", attrs={"class": "Main Container"})
-    if movies_page:
+    if movies_page := scrapePage(m_url):
         results = parseDOM(movies_page.text, "li", attrs={"class": "TPostMv post-.+?"})
         next_p = parseDOM(movies_page.text, "div", attrs={"class": "nav-links"})
     # logger(f"total episodes: {len(result)} result: {result}")
@@ -265,7 +255,7 @@ def tv_shows(params):
     url = params['url']
     iconImage = params['iconImage']
     rescrape = params['rescrape']
-    string = f"{'shows_list'}_{ch_name}"
+    string = f"shows_list_{ch_name}"
     params = {'url': url, 'ch_name': ch_name, 'iconImage': iconImage}
     cache_name = string + urlencode(params)
     if rescrape == 'true':
@@ -346,8 +336,7 @@ def get_tv_shows(params):
     ch_name = params['ch_name']
     iconImage = params['iconImage']
     shows = results = []
-    show_page = scrapePage(url)
-    if show_page:
+    if show_page := scrapePage(url):
         result = parseDOM(show_page.text, "h2", attrs={"class": "forumtitle"})
     # logger(f"items shows: {result}")
     for item in results:
@@ -361,7 +350,7 @@ def get_tv_shows(params):
         if type(url) is list and len(url) > 0: url = str(url[0])
         if 'Past Shows' not in title:
             tmdb_id = gettmdb_id('tvshow', title, None, ch_name)
-            url = urljoin(desirule_url, url) if not url.startswith(desirule_url) else url
+            url = url if url.startswith(desirule_url) else urljoin(desirule_url, url)
             meta = fetch_meta(mediatype='tvshow', title=title, tmdb_id=tmdb_id, homepage=url, studio=ch_name, poster=iconImage)
             shows.append({"url": url, "title": title, "ch_name": ch_name, "tmdb_id": tmdb_id, "meta": meta})
     # logger(f'len(shows): {len(shows)} shows :  {shows}')
@@ -374,9 +363,7 @@ def get_tv_shows_yo(params):
     ch_name = params['ch_name']
     iconImage = params['iconImage']
     shows = results = []
-    show_page = scrapePage(url)
-    # show_page = read_write_file('www.yodesi.net.html')
-    if show_page:
+    if show_page := scrapePage(url):
         rawResult = parseDOM(show_page.text, "div", attrs={"id": "content_box"})[0]
         # result = parseDOM(rawResult, "div", attrs={"class": re.compile('^one_')})
         results = parseDOM(rawResult, "div", attrs={"class": "one_fourth  "})
@@ -392,15 +379,11 @@ def get_tv_shows_yo(params):
         if type(url) is list and len(url) > 0: url = str(url[0])
         tmdb_id = gettmdb_id('tvshow', title, None, ch_name)
         show = {"url": url, "title": title, "ch_name": ch_name, "tmdb_id": f'{ch_name}|{title.lower()}'}
-        if old_hindi_shows == 'true':
+        if old_hindi_shows == 'true' or '-archive' not in url:
             meta = fetch_meta(mediatype='tvshow', title=title, tmdb_id=tmdb_id, homepage=url, studio=ch_name, poster=iconImage)
-            show.update({"meta": meta})
+            show["meta"] = meta
             shows.append(show)
-        elif '-archive' not in url:
-            meta = fetch_meta(mediatype='tvshow', title=title, tmdb_id=tmdb_id, homepage=url, studio=ch_name, poster=iconImage)
-            show.update({"meta": meta})
-            shows.append(show)
-        # except: pass
+            # except: pass
     # logger(f'len(shows): {len(shows)} shows :  {shows}')
     return shows
 
@@ -411,8 +394,7 @@ def get_tv_shows_desitelly(params):
     ch_name = params['ch_name']
     iconImage = params['iconImage']
     shows = results = []
-    show_page = scrapePage(base_url)
-    if show_page:
+    if show_page := scrapePage(base_url):
         results = parseDOM(show_page.text, "div", attrs={"class": "vc_column_container col-md-3"})
         results += parseDOM(show_page.text, "div", attrs={"class": "vc_column_container col-md-4"})
     # logger(f"result shows: {result}")
@@ -528,7 +510,7 @@ def tv_episo(params):
     meta = params['meta']
     rescrape = params['rescrape']
     meta = json.loads(meta)
-    string = f"{'episodes_list'}_{title}_{page}"
+    string = f"episodes_list_{title}_{page}"
     params = {'url': url, 'title': title, 'ch_name': ch_name, 'pg_no': page}
     cache_name = string + urlencode(params)
     if rescrape == 'true':
@@ -584,21 +566,22 @@ def get_tv_episo(params):
             if type(url) is list: url = url[0]
             if "Online" not in ep_name: continue
             # logger(f"title: {title} ep_name: {ep_name}")
-            if not title == 'Awards': ep_name = get_episode_date(ep_name, title)
+            if title != 'Awards': ep_name = get_episode_date(ep_name, title)
             if "?" in url: url = url.split("?")[0]
-            url = urljoin(desirule_url, url) if not url.startswith(desirule_url) else url
+            url = url if url.startswith(desirule_url) else urljoin(desirule_url, url)
             # urls.append(url)
             int_epi, year = get_int_epi(ep_name)
             premiered = string_date_to_num(ep_name)
             episodes.append({"url": url, "title": ep_name, "ch_name": ch_name, "episode": int_epi, "premiered": premiered, "year": int(year), "pg_no": pg_no})
 
-        next_p = parseDOM(episo_page, "span", attrs={"class": "prev_next"})
-        if next_p:
-            next_p_u = parseDOM(next_p, "a", attrs={"rel": "next"}, ret="href")
-            if next_p_u:
+        if next_p := parseDOM(
+            episo_page, "span", attrs={"class": "prev_next"}
+        ):
+            if next_p_u := parseDOM(
+                next_p, "a", attrs={"rel": "next"}, ret="href"
+            ):
                 next_p_u = next_p_u[0]
-                if "?" in next_p_u: url = next_p_u.split("?")[0]
-                else: url = next_p_u
+                url = next_p_u.split("?")[0] if "?" in next_p_u else next_p_u
                 try:
                     pg_no = re.compile(r'page\d{1,2}').findall(url)[0]
                     pg_no = pg_no.replace('page', '')
@@ -606,7 +589,7 @@ def get_tv_episo(params):
                 except:
                     pg_no = '1'
                 name = f"Next Page: {pg_no}"
-                url = urljoin(desirule_url, url) if not url.startswith(desirule_url) else url
+                url = url if url.startswith(desirule_url) else urljoin(desirule_url, url)
                 episodes.append({"url": url, "title": name, "ch_name": ch_name, "plot": f"For More {title} Go To {name} ....", "episode": pg_no, "premiered": '', "season": 0, "year": 0, "pg_no": pg_no})
         # logger(f'len(shows): {len(episodes)} episodes :  {episodes}')
         return episodes
@@ -638,11 +621,9 @@ def get_tv_episo_yo(params):
             int_epi, year = get_int_epi(ep_name)
             premiered = string_date_to_num(ep_name)
             episodes.append({"url": url, "title": ep_name, "ch_name": ch_name, "episode": int_epi, "premiered": premiered, "year": int(year), "pg_no": pg_no})
-        # logger(f"episodes: {episodes}")
-        next_p = parseDOM(episo_page, "div", attrs={"class": "nav-links"})
-        if next_p:
-            next_p_u = next_pagination_dict(next_p, title, ch_name)
-            if next_p_u: episodes.append(next_p_u)
+        if next_p := parseDOM(episo_page, "div", attrs={"class": "nav-links"}):
+            if next_p_u := next_pagination_dict(next_p, title, ch_name):
+                episodes.append(next_p_u)
         # logger(f'len(shows): {len(episodes)} episodes :  {episodes}')
         return episodes
     except: logger(f'get_tv_episo_yo episodes {traceback.print_exc()}')
@@ -677,31 +658,41 @@ def get_tv_episo_desitelly(params):
                 if 'Awards' in title:
                     ep_name = ep_name.lower().replace("watch online", "").replace("hd", "").replace("telecast", "")
                     ep_name = ep_name.title()
-                else:
-                    if "Episode" in ep_name: ep_name = get_episode_date(ep_name, title)
+                elif "Episode" in ep_name: ep_name = get_episode_date(ep_name, title)
                 if ep_name:
                     int_epi, year = get_int_epi(ep_name)
                     premiered = string_date_to_num(ep_name)
                     # logger(f"ep_name: {ep_name}")
                     episodes.append({"url": url, "title": ep_name, "ch_name": ch_name, "episode": int_epi, "premiered": premiered, "year": int(year), "pg_no": pg_no})
-        # ## for Next page <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        next_p = parseDOM(episo_page, "div", attrs={"class": "pagination-wrap"})
-        # logger(f"next_p: {next_p}")
-        if next_p:
-            next_p_u = next_pagination_dict(next_p, title, ch_name)
-            if next_p_u: episodes.append(next_p_u)
+        if next_p := parseDOM(
+            episo_page, "div", attrs={"class": "pagination-wrap"}
+        ):
+            if next_p_u := next_pagination_dict(next_p, title, ch_name):
+                episodes.append(next_p_u)
         # logger(f'len(shows): {len(episodes)} episodes :  {episodes}')
         return episodes
     except: logger(f'get_tv_episo_desitelly episodes {traceback.print_exc()}')
 
 
 def next_pagination_dict(next_p, title, ch_name):
-    next_p_u = parseDOM(next_p, "a", attrs={"class": "next page-numbers"}, ret="href")
-    if next_p_u:
+    if next_p_u := parseDOM(
+        next_p, "a", attrs={"class": "next page-numbers"}, ret="href"
+    ):
         next_p_url = next_p_u[0]
         # logger(f'{repr(next_p_url)}')
         pg_no = re.compile('/([0-9]+)/').findall(next_p_url)[0]
         name = f"Next Page: {pg_no}"
-        next_dict = {"url": next_p_url, "title": name, "ch_name": ch_name, "premiered": '', "plot": f"For More {title} Go To {name} ....", "episode": pg_no, "season": 0, "year": 0, "pg_no": pg_no}
-        return next_dict
-    else: return
+        return {
+            "url": next_p_url,
+            "title": name,
+            "ch_name": ch_name,
+            "premiered": '',
+            "plot": f"For More {title} Go To {name} ....",
+            "episode": pg_no,
+            "season": 0,
+            "year": 0,
+            "pg_no": pg_no,
+        }
+
+    else:
+        return

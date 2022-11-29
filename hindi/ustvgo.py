@@ -228,8 +228,7 @@ def _process(list_data, base_link):
             cm = []
             cm_append = cm.append
             name = i['title']
-            if i['image'].startswith('http'): thumb = i['image']
-            else: thumb = base_link + i['image']
+            thumb = i['image'] if i['image'].startswith('http') else base_link + i['image']
             if thumb in ('', None): thumb = addon_icon
             url = f'{base_link}{i["url"]}'
             url_params = {'mode': i['mode'], 'title': name, 'url': url}
@@ -256,9 +255,7 @@ def retrieve_new_token(argf=None):
     # auth_token = stream_url.split("wmsAuthSign=")[1]
     # logger("stream_url: %s"% stream_url)
     result = re.compile('https://(.+?)/.+?wmsAuthSign=(.+?)$', re.MULTILINE | re.DOTALL).findall(stream_url)
-    # logger("auth_token: %s"% result)
-    auth_token = {"cdn_nodes": result[0][0], "auth_token": result[0][1]}
-    return auth_token
+    return {"cdn_nodes": result[0][0], "auth_token": result[0][1]}
 
 
 def play(params):
@@ -334,7 +331,7 @@ def get_dict_per_name(list_of_dict, key_value):
     for item in list_of_dict:
         if item['title'] == key_value:
             my_item = item
-            list_of_dict.remove(item)
+            list_of_dict.remove(my_item)
             break
     return list_of_dict, my_item
 
@@ -356,23 +353,28 @@ def get_ch_data():
         # ch_name = ch_name.replace('Animal', 'Animal Planet').replace('CW', 'The CW').strip()
         list_of_dict, ch_dict = get_dict_per_name(list_of_dict, ch_name)
         # logger(f">>> item: {ch_dict}")
-        if ch_name == 'FoxNews': ch_no = 1
-        elif ch_name == 'FoxBusiness': ch_no = 2
-        else: ch_no += 1
+        if ch_name == 'FoxBusiness':
+            ch_no = 2
+        elif ch_name == 'FoxNews':
+            if ch_name == 'FoxNews': ch_no = 1
+        else:
+            ch_no += 1
 
         if ch_dict:
             ch_dict.update({'url': item[0], 'ch_no': ch_no})
             ch_lists.append(ch_dict)
         else:
             result = scrapePage(item[0]).text
-            # read_write_file(file_n='ustv2.html', read=False, result=result)
-            # result = read_write_file(file_n='ustv2.html')
-            ch_stub = re.findall(r'<iframe src=[\'|"]\/clappr\.php\?stream=(.+?)[\'|"] allowfullscreen', result)
-            if ch_stub: vid_url = 'https://%s/' + '%s' % ch_stub[0] + '/myStream/playlist.m3u8?wmsAuthSign=%s'
-            else: vid_url = "https://%s/Boomerang/myStream/playlist.m3u8?wmsAuthSign=%s"
+            if ch_stub := re.findall(
+                r'<iframe src=[\'|"]\/clappr\.php\?stream=(.+?)[\'|"] allowfullscreen',
+                result,
+            ):
+                vid_url = f'https://%s/{ch_stub[0]}/myStream/playlist.m3u8?wmsAuthSign=%s'
+            else:
+                vid_url = "https://%s/Boomerang/myStream/playlist.m3u8?wmsAuthSign=%s"
             ch_lists.append({'ch_no': ch_no, 'action': 'ltp_ustv', 'poster': '', 'title': ch_name, 'url': item[0], 'vid_url': vid_url})
     # logger(f">>> nos of item in local but not found new : {len(list_of_dict)} list_of_dict: {list_of_dict}")
-    ch_lists = ch_lists + list_of_dict
+    ch_lists += list_of_dict
     ch_lists = sorted(ch_lists, key=lambda k: k['ch_no'])
     # ch_lists = json.loads(str(ch_lists))
     # logger(f">>> list_of_dict: {json.dumps(ch_lists)}")

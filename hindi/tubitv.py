@@ -38,49 +38,49 @@ headers = {
 
 
 def _process(list_data):
-    # info = {}
-    for i in list_data:
-        if not re.search(r"espanol|lgbt|nominados|telenovelas", str(i), flags=re.I):
-            cm = []
-            cm_append = cm.append
-            title = i['title']
-            thumb = icon = i['icon'] if i.get('icon', None) else addon_fanart
-            url_params = {'mode': i['action'], 'title': title, 'id': i['id'], 'page': i['page']}
-            # logger(f"tubutv _process url_params: {url_params}")
-            url = build_url(url_params)
-            options_params = {'mode': 'options_menu_choice', 'suggestion': title, 'play_params': url}
-            cm_append(("[B]Options...[/B]", f'RunPlugin({build_url(options_params)})'))
-            cm_append(("[B]Add to a Shortcut Folder[/B]", 'RunPlugin(%s)' % build_url({'mode': 'menu_editor.shortcut_folder_add_item', 'name': title, 'iconImage': icon})))
-            try: year = i['year']
-            except: year = 2022
-            try: rating = i['rating']
-            except: rating = ''
-            try: duration = i['duration']
-            except: duration = 1500
-            try: genre = i['genre']
-            except: genre = []
-            if 'Next Page:' in remove_accents(title):
-                icon = thumb = item_next
-                info = {'plot': f'Go To Next Page....: {i["page"]}', "year": year, "genre": genre}
-            else:
-                info = {
-                    "title": title,
-                    "plot": str(i.get('summary', '')),
-                    "rating": rating,
-                    "year": year,
-                    "duration": duration, # "Cast":actors,
-                    "genre": genre}
-            # logger(f"tubutv _process info: {info}")
-            listitem = make_listitem()
-            is_folder = i['is_folder']
-            listitem.setLabel(title)
-            listitem.addContextMenuItems(cm)
-            info.update({'imdb_id': title, 'mediatype': 'episode', 'episode': 1, 'season': 0})
-            setUniqueIDs = {'imdb': str(title)}
-            listitem = set_info(listitem, info, setUniqueIDs)
-            listitem.setArt({'icon': icon, 'poster': thumb, 'thumb': thumb, 'banner': thumb})
-            yield url, listitem, is_folder
-    return
+	    # info = {}
+	for i in list_data:
+		if not re.search(r"espanol|lgbt|nominados|telenovelas", str(i), flags=re.I):
+			cm = []
+			cm_append = cm.append
+			title = i['title']
+			thumb = icon = i['icon'] if i.get('icon', None) else addon_fanart
+			url_params = {'mode': i['action'], 'title': title, 'id': i['id'], 'page': i['page']}
+			# logger(f"tubutv _process url_params: {url_params}")
+			url = build_url(url_params)
+			options_params = {'mode': 'options_menu_choice', 'suggestion': title, 'play_params': url}
+			cm_append(("[B]Options...[/B]", f'RunPlugin({build_url(options_params)})'))
+			cm_append(("[B]Add to a Shortcut Folder[/B]", 'RunPlugin(%s)' % build_url({'mode': 'menu_editor.shortcut_folder_add_item', 'name': title, 'iconImage': icon})))
+			try: year = i['year']
+			except: year = 2022
+			try: rating = i['rating']
+			except: rating = ''
+			try: duration = i['duration']
+			except: duration = 1500
+			try: genre = i['genre']
+			except: genre = []
+			if 'Next Page:' in remove_accents(title):
+			    icon = thumb = item_next
+			    info = {'plot': f'Go To Next Page....: {i["page"]}', "year": year, "genre": genre}
+			else:
+			    info = {
+			        "title": title,
+			        "plot": str(i.get('summary', '')),
+			        "rating": rating,
+			        "year": year,
+			        "duration": duration, # "Cast":actors,
+			        "genre": genre}
+			# logger(f"tubutv _process info: {info}")
+			listitem = make_listitem()
+			is_folder = i['is_folder']
+			listitem.setLabel(title)
+			listitem.addContextMenuItems(cm)
+			info |= {'imdb_id': title, 'mediatype': 'episode', 'episode': 1, 'season': 0}
+			setUniqueIDs = {'imdb': str(title)}
+			listitem = set_info(listitem, info, setUniqueIDs)
+			listitem.setArt({'icon': icon, 'poster': thumb, 'thumb': thumb, 'banner': thumb})
+			yield url, listitem, is_folder
+	return
 
 
 def tubitv_root():
@@ -193,107 +193,111 @@ def tubitv_categs(params):
 
 
 def get_categs(item, page):
-    url2 = f"https://tubitv.com/oz/containers/{item}/content?parentId&cursor=10&limit=450&isKidsModeEnabled=false&expand=0"
-    # logger(f"##### tubutv _process item_list: {url2} : {page}")
-    headers.update({'referer': 'https://tubitv.com/home',})
-    response = scrapePage(url2, headers=headers).text
-    # logger(f"##### tubutv _process item_list: {response} : {page}")
-    data = json.loads(response)
-    # logger(f"get_categs data: {data}")
-    children = data['containersHash'][item]['children']
-    if page == "1":
-        x = children[0:75]
-    elif page == "2":
-        x = children[75:150]
-    elif page == "3":
-        x = children[150:225]
-    elif page == "4":
-        x = children[225:300]
-    elif page == "5":
-        x = children[300:375]
-    elif page == "6":
-        x = children[375:450]
-    elif page == "7":
-        x = children[450:525]
+	url2 = f"https://tubitv.com/oz/containers/{item}/content?parentId&cursor=10&limit=450&isKidsModeEnabled=false&expand=0"
+	# logger(f"##### tubutv _process item_list: {url2} : {page}")
+	headers.update({'referer': 'https://tubitv.com/home',})
+	response = scrapePage(url2, headers=headers).text
+	# logger(f"##### tubutv _process item_list: {response} : {page}")
+	data = json.loads(response)
+	# logger(f"get_categs data: {data}")
+	children = data['containersHash'][item]['children']
+	if page == "1":
+		x = children[:75]
+	elif page == "2":
+		x = children[75:150]
+	elif page == "3":
+		x = children[150:225]
+	elif page == "4":
+		x = children[225:300]
+	elif page == "5":
+		x = children[300:375]
+	elif page == "6":
+		x = children[375:450]
+	elif page == "7":
+		x = children[450:525]
 
-    ch_lists = []
+	ch_lists = []
 
-    for c in x:
-        try:
-            title = str(data['contents'][c]['title'])#.encode('utf-8')
-            # check = data['contents'][c]['availability_duration']
-            type_media = data['contents'][c]['type']
-            sid = data['contents'][c]['id']
-            summary = str(data['contents'][c]['description'])#.encode('utf-8')
-            image = data['contents'][c]['posterarts'][0]
-            try: year = int(data['contents'][c]['year'])
-            except: year = 2022
-            try: fanart = data['contents'][c]['backgrounds'][0]
-            except: fanart = addon_fanart
-            try: duration = data['contents'][c]['duration']
-            except: duration = 1500
-            try: rating = data['contents'][c]['ratings'][0]['code']
-            except: rating = ""
-            try: actors = data['contents'][c]['actors']
-            except: actors = []
-            try: genre = data['contents'][c]['tags']#[0]
-            except: genre = []
-            # logger(f"get_categs title: {title} check: {check}")
-            if type_media == 's':
-                # print(title,c,3,image,fanart,summary)
-                folder_data = {
-                    'action': 'tubio_tv',
-                    'icon': image,
-                    'fanart': fanart,
-                    'title': title,
-                    'id': c,
-                    'page': f'{page}',
-                    'plot': summary,
-                    'year': year,
-                    'actors': actors,
-                    'rating': rating,
-                    'duration': duration,
-                    'is_folder': True,
-                    'genre': genre}
-                # logger(f"##### tubutv _process item_list: {folder_data}")
-                ch_lists.append(folder_data)
-                # tools.addDir(title,c,3,image,fanart,summary)
-            else:
-                # print(title,sid,4,image,fanart,summary,year,actors,rating,duration,genre)
-                ch_lists.append({
-                    'action': 'ltp_tubitv',
-                    'icon': image,
-                    'fanart': fanart,
-                    'title': title,
-                    'id': sid,
-                    'page': '%s' % page,
-                    'plot': summary,
-                    'year': year,
-                    'actors': actors,
-                    'rating': rating,
-                    'duration': duration,
-                    'is_folder': False,
-                    'genre': genre})
-            # tools.addDirMeta(title,sid,4,image,fanart,summary,year,actors,rating,duration,genre)
-        except: pass
-    # data2 = url+"**"+str(page)
-    page = int(page) + 1
-    ch_lists.append({
-        'action': 'tubio_list',
-        'icon': '',
-        'fanart': addon_fanart,
-        'title': f"Next Page: {page}",
-        'id': item,
-        'page': f'{page}',
-        'plot': '',
-        'year': '',
-        'actors': '',
-        'rating': '',
-        'duration': '',
-        'is_folder': True,
-        'genre': []})
-    # print(ch_lists)
-    return ch_lists
+	for c in x:
+		try:
+			title = str(data['contents'][c]['title'])#.encode('utf-8')
+			# check = data['contents'][c]['availability_duration']
+			type_media = data['contents'][c]['type']
+			summary = str(data['contents'][c]['description'])#.encode('utf-8')
+			image = data['contents'][c]['posterarts'][0]
+			try: year = int(data['contents'][c]['year'])
+			except: year = 2022
+			try: fanart = data['contents'][c]['backgrounds'][0]
+			except: fanart = addon_fanart
+			try: duration = data['contents'][c]['duration']
+			except: duration = 1500
+			try: rating = data['contents'][c]['ratings'][0]['code']
+			except: rating = ""
+			try: actors = data['contents'][c]['actors']
+			except: actors = []
+			try: genre = data['contents'][c]['tags']#[0]
+			except: genre = []
+			            # logger(f"get_categs title: {title} check: {check}")
+			if type_media == 's':
+				# print(title,c,3,image,fanart,summary)
+				folder_data = {
+				    'action': 'tubio_tv',
+				    'icon': image,
+				    'fanart': fanart,
+				    'title': title,
+				    'id': c,
+				    'page': f'{page}',
+				    'plot': summary,
+				    'year': year,
+				    'actors': actors,
+				    'rating': rating,
+				    'duration': duration,
+				    'is_folder': True,
+				    'genre': genre}
+				# logger(f"##### tubutv _process item_list: {folder_data}")
+				ch_lists.append(folder_data)
+				# tools.addDir(title,c,3,image,fanart,summary)
+			else:
+				sid = data['contents'][c]['id']
+				                # print(title,sid,4,image,fanart,summary,year,actors,rating,duration,genre)
+				ch_lists.append(
+					{
+						'action': 'ltp_tubitv',
+						'icon': image,
+						'fanart': fanart,
+						'title': title,
+						'id': sid,
+						'page': f'{page}',
+						'plot': summary,
+						'year': year,
+						'actors': actors,
+						'rating': rating,
+						'duration': duration,
+						'is_folder': False,
+						'genre': genre,
+					}
+				)
+
+		            # tools.addDirMeta(title,sid,4,image,fanart,summary,year,actors,rating,duration,genre)
+		except: pass
+	# data2 = url+"**"+str(page)
+	page = int(page) + 1
+	ch_lists.append({
+	    'action': 'tubio_list',
+	    'icon': '',
+	    'fanart': addon_fanart,
+	    'title': f"Next Page: {page}",
+	    'id': item,
+	    'page': f'{page}',
+	    'plot': '',
+	    'year': '',
+	    'actors': '',
+	    'rating': '',
+	    'duration': '',
+	    'is_folder': True,
+	    'genre': []})
+	# print(ch_lists)
+	return ch_lists
 
 
 def tubitv_shows(params):
